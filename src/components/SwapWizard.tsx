@@ -153,7 +153,7 @@ export function SwapWizard() {
     <div className="bg-gray-950 border border-gray-800 rounded-xl p-8 relative">
       {/* Developer Mode Hint */}
       {showDevModeHint && (
-        <div className="fixed bottom-6 right-6 z-40 max-w-sm bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg shadow-2xl border border-green-400/50 p-4 animate-slide-in-up">
+        <div className="fixed top-6 right-6 z-40 max-w-sm bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg shadow-2xl border border-green-400/50 p-4 animate-slide-in-up">
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">

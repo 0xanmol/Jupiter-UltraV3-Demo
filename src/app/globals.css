@@ -40,7 +40,7 @@ body {
 
 @keyframes slide-in-up {
   from {
-    transform: translateY(100%);
+    transform: translateY(-20px);
     opacity: 0;
   }
   to {
