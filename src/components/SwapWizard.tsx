@@ -53,10 +53,26 @@ export function SwapWizard() {
 
   // Check for API key - must be done in useEffect for client components
   const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
+  const [showDevModeHint, setShowDevModeHint] = useState(false);
   
   useEffect(() => {
     setHasApiKey(!!process.env.NEXT_PUBLIC_JUPITER_API_KEY);
-  }, []);
+    
+    // Check if user has dismissed the dev mode hint
+    const dismissed = localStorage.getItem('dev-mode-hint-dismissed');
+    if (!dismissed && connected) {
+      // Show hint after a short delay when user starts interacting
+      const timer = setTimeout(() => {
+        setShowDevModeHint(true);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [connected]);
+
+  const handleDismissDevModeHint = () => {
+    setShowDevModeHint(false);
+    localStorage.setItem('dev-mode-hint-dismissed', 'true');
+  };
 
   if (hasApiKey === false) {
     return (
@@ -135,6 +151,36 @@ export function SwapWizard() {
 
   return (
     <div className="bg-gray-950 border border-gray-800 rounded-xl p-8 relative">
+      {/* Developer Mode Hint */}
+      {showDevModeHint && (
+        <div className="fixed bottom-6 right-6 z-40 max-w-sm bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg shadow-2xl border border-green-400/50 p-4 animate-slide-in-up">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                </svg>
+                <p className="text-white font-semibold text-sm">Developer Mode</p>
+              </div>
+              <p className="text-green-50 text-xs mb-2">
+                See live API calls and copy code snippets
+              </p>
+              <p className="text-green-100 text-xs font-mono bg-green-600/30 px-2 py-1 rounded">
+                Press Cmd+D (Mac) or Ctrl+D (Windows/Linux)
+              </p>
+            </div>
+            <button
+              onClick={handleDismissDevModeHint}
+              className="flex-shrink-0 text-white hover:text-green-100 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Success Animation Overlay */}
       <div className={`fixed inset-0 bg-black/80 flex items-center justify-center z-50 transition-opacity duration-500 ${showSuccessAnimation ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
         <div className={`text-center transition-all duration-700 ${showSuccessAnimation ? 'scale-100 opacity-100' : 'scale-90 opacity-0'}`}>
