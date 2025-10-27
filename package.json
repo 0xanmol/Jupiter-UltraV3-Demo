@@ -12,10 +12,10 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
     "@jup-ag/wallet-adapter": "^0.2.5",
     "@solana/web3.js": "^1.98.4",
+    "@tailwindcss/postcss": "^4.1.16",
     "@types/node": "^24.9.1",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
