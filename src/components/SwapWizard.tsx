@@ -142,8 +142,11 @@ export function SwapWizard() {
         <h2 className="text-2xl font-semibold text-white mb-4">
           Connect Your Wallet
         </h2>
-        <p className="text-gray-500 text-lg">
+        <p className="text-gray-500 text-lg mb-6">
           Connect your Solana wallet above to start swapping
+        </p>
+        <p className="text-gray-400 text-sm">
+          Use the &ldquo;Connect Wallet&rdquo; button above to get started
         </p>
       </div>
     );
