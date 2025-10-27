@@ -23,6 +23,9 @@ export interface OrderResponse {
   swapType: string;
   feeMint?: string;
   feeBps?: number;
+  outAmount?: number;
+  inAmount?: number;
+  priceImpactPct?: number;
 }
 
 export interface ExecuteResponse {
