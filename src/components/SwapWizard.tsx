@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useWallet } from '@jup-ag/wallet-adapter';
 import { VersionedTransaction } from '@solana/web3.js';
 import { Step1Configure } from './Step1Configure';
@@ -47,6 +47,29 @@ export function SwapWizard() {
   const [error, setError] = useState<string | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+
+  // Check for API key - must be done in useEffect for client components
+  const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
+  
+  useEffect(() => {
+    setHasApiKey(!!process.env.NEXT_PUBLIC_JUPITER_API_KEY);
+  }, []);
+
+  if (hasApiKey === false) {
+    return (
+      <div className="bg-yellow-900 border border-yellow-700 text-yellow-100 px-6 py-4 rounded-lg">
+        <p className="font-semibold text-lg mb-2">⚠️ API Key Required</p>
+        <p className="mb-3">To use this demo, you need a Jupiter API key:</p>
+        <ol className="list-decimal list-inside space-y-2 mb-3">
+          <li>Get your API key from <a href="https://portal.jup.ag" className="underline text-yellow-300" target="_blank" rel="noopener noreferrer">portal.jup.ag</a></li>
+          <li>Copy <code className="bg-yellow-800 px-1 rounded">.env.example</code> to <code className="bg-yellow-800 px-1 rounded">.env.local</code></li>
+          <li>Add your API key to <code className="bg-yellow-800 px-1 rounded">.env.local</code></li>
+          <li>Restart the dev server</li>
+        </ol>
+        <p className="text-sm text-yellow-200">Read the README for detailed instructions.</p>
+      </div>
+    );
+  }
 
   const handleStep1Complete = (config: SwapConfig) => {
     setSwapConfig(config);

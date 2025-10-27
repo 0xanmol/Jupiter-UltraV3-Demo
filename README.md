@@ -10,11 +10,38 @@ This demonstrates the complete swap workflow using Jupiter Ultra Swap API:
 2. Get quote with unsigned transaction from Jupiter
 3. Sign and execute the swap
 
+## Why Ultra V3?
+
+### The Traditional Way ❌
+```typescript
+// You need to:
+// 1. Set up RPC provider
+const connection = new Connection('https://api.mainnet-beta.solana.com');
+// 2. Build transaction yourself
+// 3. Calculate accounts, compute budget, etc.
+// 4. Handle quote refresh
+// 5. Manage slippage manually
+// 6. Handle errors from multiple sources
+```
+
+### The Ultra V3 Way ✅
+```typescript
+// Jupiter handles everything for you:
+// 1. Get quote with pre-built transaction
+const quote = await fetch('https://api.jup.ag/ultra/v1/order?...');
+// 2. Sign it
+const signed = await signTransaction(transaction);
+// 3. Submit it
+const result = await fetch('https://api.jup.ag/ultra/v1/execute', ...);
+```
+
 **Key Ultra V3 Benefits:**
-- No RPC required - Jupiter handles all blockchain interactions
-- Simplified balance fetching via `/holdings` endpoint
-- Pre-built transactions ready to sign and submit
-- Complete swap infrastructure without RPC complexity
+- ✅ **Zero RPC complexity** - No need for Solana RPC endpoints
+- ✅ **Pre-built transactions** - Jupiter creates optimized transactions ready to sign
+- ✅ **Simplified balance fetching** - Use `/holdings` endpoint instead of RPC calls
+- ✅ **Built-in routing** - Automatic DEX aggregation and route optimization
+- ✅ **Production ready** - Handles all edge cases (insufficient liquidity, slippage, etc.)
+- ✅ **Single API key** - Simple authentication, no infrastructure needed
 
 ## Architecture
 
@@ -40,6 +67,16 @@ src/
 Install dependencies:
 ```bash
 npm install
+```
+
+Set up your API key:
+1. Copy `.env.example` to `.env.local`
+2. Get your API key from [Jupiter Portal](https://portal.jup.ag)
+3. Add your API key to `.env.local`
+
+```bash
+cp .env.example .env.local
+# Then edit .env.local with your API key
 ```
 
 Run development server:
