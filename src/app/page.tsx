@@ -30,7 +30,7 @@ export default function Home() {
         <div className="container mx-auto px-4 py-8 relative z-10 flex flex-col items-center justify-center min-h-screen">
           <div className="text-center mb-8">
             <div className="flex items-center justify-center gap-4 mb-4">
-              <img src="/logo-dark.svg" alt="Jupiter" className="w-12 h-12" />
+              <img src="/assets/logo-dark.svg" alt="Jupiter" className="w-12 h-12" />
               <span className="text-4xl font-bold text-white tracking-tight">
                 Ultra Swap Wizard
               </span>
@@ -57,7 +57,7 @@ export default function Home() {
               className="group opacity-70 hover:opacity-100 transition-opacity"
             >
               <img 
-                src="/poweredbyjupiter-dark.svg" 
+                src="/assets/poweredbyjupiter-dark.svg" 
                 alt="Powered by Jupiter" 
                 className="h-6"
               />

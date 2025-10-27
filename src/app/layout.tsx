@@ -5,9 +5,9 @@ export const metadata: Metadata = {
   title: 'Ultra Swap Wizard',
   description: 'Jupiter Ultra Swap API Demo',
   icons: {
-    icon: '/logo-dark.svg',
-    shortcut: '/logo-dark.svg',
-    apple: '/logo-dark.svg',
+    icon: '/assets/logo-dark.svg',
+    shortcut: '/assets/logo-dark.svg',
+    apple: '/assets/logo-dark.svg',
   },
 }
 

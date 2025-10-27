@@ -3,9 +3,9 @@
 import Image from 'next/image';
 
 const TOKEN_ICONS: Record<string, string> = {
-  'So11111111111111111111111111111111111111112': '/solana-sol-logo.svg',
-  'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v': '/usd-coin-usdc-logo.svg',
-  'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB': '/usdt-svgrepo-com.svg',
+  'So11111111111111111111111111111111111111112': '/assets/solana-sol-logo.svg',
+  'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v': '/assets/usd-coin-usdc-logo.svg',
+  'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB': '/assets/usdt-svgrepo-com.svg',
 };
 
 interface TokenIconProps {
