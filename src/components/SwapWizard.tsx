@@ -313,7 +313,7 @@ export function SwapWizard() {
         </div>
       )}
       
-      <DeveloperMode logs={logs} onClear={clearLogs} />
+      <DeveloperMode logs={logs} onClear={clearLogs} onOpen={handleDismissDevModeHint} />
     </div>
   );
 }

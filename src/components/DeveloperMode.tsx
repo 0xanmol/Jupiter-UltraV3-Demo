@@ -6,9 +6,10 @@ import { ApiLogEntry } from '../hooks/useApiLogger';
 interface DeveloperModeProps {
   logs: ApiLogEntry[];
   onClear: () => void;
+  onOpen?: () => void;
 }
 
-export function DeveloperMode({ logs, onClear }: DeveloperModeProps) {
+export function DeveloperMode({ logs, onClear, onOpen }: DeveloperModeProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedLog, setSelectedLog] = useState<ApiLogEntry | null>(null);
 
@@ -16,13 +17,20 @@ export function DeveloperMode({ logs, onClear }: DeveloperModeProps) {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
         e.preventDefault();
-        setIsOpen(prev => !prev);
+        setIsOpen(prev => {
+          const newState = !prev;
+          // If opening (was closed, now opening), call onOpen
+          if (!prev && newState) {
+            onOpen?.();
+          }
+          return newState;
+        });
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [onOpen]);
 
   const getStatusColor = (status: number) => {
     if (status >= 200 && status < 300) return 'text-green-400';
