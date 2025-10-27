@@ -55,18 +55,25 @@ export function SwapWizard() {
   const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
   const [showDevModeHint, setShowDevModeHint] = useState(false);
   
+  // Check API key on mount
   useEffect(() => {
     setHasApiKey(!!process.env.NEXT_PUBLIC_JUPITER_API_KEY);
+  }, []);
+
+  // Show dev mode hint when wallet is connected
+  useEffect(() => {
+    if (!connected) return;
     
     // Check if user has dismissed the dev mode hint
     const dismissed = localStorage.getItem('dev-mode-hint-dismissed');
-    if (!dismissed && connected) {
-      // Show hint after a short delay when user starts interacting
-      const timer = setTimeout(() => {
-        setShowDevModeHint(true);
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
+    if (dismissed === 'true') return;
+    
+    // Show hint after a short delay when user starts interacting
+    const timer = setTimeout(() => {
+      setShowDevModeHint(true);
+    }, 2000);
+    
+    return () => clearTimeout(timer);
   }, [connected]);
 
   const handleDismissDevModeHint = () => {
