@@ -381,7 +381,7 @@ ${Object.entries(request.headers || {}).map(([k, v]) => `    '${k}': '${v}'`).jo
                       {log.timestamp.toLocaleTimeString()}
                     </div>
                   </button>
-                  {onReplayRequest && (
+                  {onReplayRequest && !log.url.includes('/ultra/v1/execute') && (
                     <div className="px-3 pb-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={(e) => {

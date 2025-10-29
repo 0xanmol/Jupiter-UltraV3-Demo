@@ -26,12 +26,21 @@ export interface OrderResponse {
   outAmount?: number;
   inAmount?: number;
   priceImpactPct?: number;
+  routePlan?: Array<{
+    name?: string;
+    percent?: number;
+    [key: string]: any;
+  }>;
 }
 
 export interface ExecuteResponse {
   status: 'Success' | 'Failed' | 'Pending';
   signature?: string;
   error?: string;
+  outAmount?: number;
+  inAmount?: number;
+  executedOutAmount?: number;
+  executedInAmount?: number;
 }
 
 export function SwapWizard() {

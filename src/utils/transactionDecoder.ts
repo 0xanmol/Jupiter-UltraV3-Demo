@@ -43,19 +43,47 @@ export function decodeTransaction(base64Transaction: string): DecodedTransaction
     const signatures = transaction.signatures.map(sig => sig.toString('base64'));
     
     const message = transaction.message;
-    const accountKeys = message.staticAccountKeys.map(key => key.toBase58());
+    
+    // Get all account keys including lookup table accounts
+    const staticAccountKeys = message.staticAccountKeys.map(key => key.toBase58());
+    
+    // For lookup tables, we can't resolve them without the actual lookup table data
+    // So we'll create placeholder entries for them
+    const lookupTablePlaceholders: string[] = [];
+    if (message.addressTableLookups) {
+      message.addressTableLookups.forEach((lookup, index) => {
+        for (let i = 0; i < lookup.readonlyIndexes.length + lookup.writableIndexes.length; i++) {
+          lookupTablePlaceholders.push(`[Lookup Table ${index + 1}]`);
+        }
+      });
+    }
+    
+    const allAccountKeys = [...staticAccountKeys, ...lookupTablePlaceholders];
     
     const instructions: DecodedInstruction[] = message.compiledInstructions.map(ix => {
-      const programId = accountKeys[ix.programIdIndex];
+      const programId = allAccountKeys[ix.programIdIndex] || 'Unknown';
       const programName = KNOWN_PROGRAMS[programId] || 'Unknown Program';
       
-      const accounts = ix.accountKeyIndexes.map(accountIndex => ({
-        pubkey: accountKeys[accountIndex],
-        isSigner: accountIndex < message.header.numRequiredSignatures,
-        isWritable: accountIndex < message.header.numRequiredSignatures - message.header.numReadonlySignedAccounts ||
-                   (accountIndex >= message.header.numRequiredSignatures && 
-                    accountIndex < accountKeys.length - message.header.numReadonlyUnsignedAccounts)
-      }));
+      const accounts = ix.accountKeyIndexes.map(accountIndex => {
+        const pubkey = allAccountKeys[accountIndex];
+        if (!pubkey) {
+          return {
+            pubkey: `[Account ${accountIndex}]`,
+            isSigner: accountIndex < message.header.numRequiredSignatures,
+            isWritable: accountIndex < message.header.numRequiredSignatures - message.header.numReadonlySignedAccounts ||
+                       (accountIndex >= message.header.numRequiredSignatures && 
+                        accountIndex < allAccountKeys.length - message.header.numReadonlyUnsignedAccounts)
+          };
+        }
+        
+        return {
+          pubkey,
+          isSigner: accountIndex < message.header.numRequiredSignatures,
+          isWritable: accountIndex < message.header.numRequiredSignatures - message.header.numReadonlySignedAccounts ||
+                     (accountIndex >= message.header.numRequiredSignatures && 
+                      accountIndex < allAccountKeys.length - message.header.numReadonlyUnsignedAccounts)
+        };
+      });
       
       return {
         programId,
@@ -74,7 +102,7 @@ export function decodeTransaction(base64Transaction: string): DecodedTransaction
           numReadonlySignedAccounts: message.header.numReadonlySignedAccounts,
           numReadonlyUnsignedAccounts: message.header.numReadonlyUnsignedAccounts,
         },
-        accountKeys
+        accountKeys: allAccountKeys
       }
     };
   } catch (error) {

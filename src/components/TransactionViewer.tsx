@@ -93,18 +93,22 @@ export function TransactionViewer({ base64Transaction, className = '' }: Transac
               <div className="space-y-2">
                 {decodedTx.instructions.map((ix, index) => (
                   <div key={index} className="bg-gray-800 rounded p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-400">#{index + 1}</span>
-                        <span className="text-sm font-medium text-white">{ix.programName}</span>
-                        <span className="text-xs text-gray-500">({ix.programId})</span>
+                    <div className="flex items-start justify-between mb-2 gap-2">
+                      <div className="flex items-start gap-2 min-w-0 flex-1">
+                        <span className="text-xs text-gray-400 flex-shrink-0">#{index + 1}</span>
+                        <div className="min-w-0 flex-1">
+                          <span className="text-sm font-medium text-white">{ix.programName}</span>
+                          <div className="text-xs text-gray-500 break-all">{ix.programId}</div>
+                        </div>
                       </div>
                       <button
                         onClick={() => copyToClipboard(ix.programId)}
-                        className="text-xs text-gray-500 hover:text-green-400 transition-colors"
+                        className="text-gray-500 hover:text-green-400 transition-colors flex-shrink-0 p-1"
                         title="Copy Program ID"
                       >
-                        📋
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
                       </button>
                     </div>
                     
@@ -112,14 +116,16 @@ export function TransactionViewer({ base64Transaction, className = '' }: Transac
                       <div className="text-gray-400 mb-1">Accounts ({ix.accounts.length}):</div>
                       <div className="space-y-1 ml-2">
                         {ix.accounts.map((account, accIndex) => (
-                          <div key={accIndex} className="flex items-center justify-between">
-                            <span className="text-gray-300">{formatAccountInfo(account)}</span>
+                          <div key={accIndex} className="flex items-start justify-between gap-2">
+                            <span className="text-gray-300 break-all flex-1 min-w-0">{formatAccountInfo(account)}</span>
                             <button
                               onClick={() => copyToClipboard(account.pubkey)}
-                              className="text-xs text-gray-500 hover:text-green-400 transition-colors opacity-0 group-hover:opacity-100"
+                              className="text-gray-500 hover:text-green-400 transition-colors flex-shrink-0 p-1"
                               title="Copy Account"
                             >
-                              📋
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                              </svg>
                             </button>
                           </div>
                         ))}
@@ -144,14 +150,16 @@ export function TransactionViewer({ base64Transaction, className = '' }: Transac
               <h5 className="text-xs text-gray-500 uppercase mb-2">Signatures ({decodedTx.signatures.length})</h5>
               <div className="space-y-1">
                 {decodedTx.signatures.map((sig, index) => (
-                  <div key={index} className="flex items-center justify-between bg-gray-800 rounded p-2">
-                    <span className="text-xs text-gray-300 font-mono">{sig}</span>
+                  <div key={index} className="flex items-start justify-between gap-2 bg-gray-800 rounded p-2">
+                    <span className="text-xs text-gray-300 font-mono break-all flex-1 min-w-0">{sig}</span>
                     <button
                       onClick={() => copyToClipboard(sig)}
-                      className="text-xs text-gray-500 hover:text-green-400 transition-colors"
+                      className="text-gray-500 hover:text-green-400 transition-colors flex-shrink-0 p-1"
                       title="Copy Signature"
                     >
-                      📋
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
                     </button>
                   </div>
                 ))}
