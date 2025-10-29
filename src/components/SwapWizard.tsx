@@ -81,6 +81,34 @@ export function SwapWizard() {
     localStorage.setItem('dev-mode-hint-dismissed', 'true');
   };
 
+  const handleReplayRequest = async (log: any) => {
+    try {
+      const response = await fetch(log.url, {
+        method: log.method,
+        headers: log.request.headers,
+        body: log.request.body ? JSON.stringify(log.request.body) : undefined,
+      });
+      
+      const data = await response.json();
+      
+      // Add the replayed request to logs
+      addLog({
+        method: log.method,
+        url: log.url,
+        request: log.request,
+        response: {
+          status: response.status,
+          statusText: response.statusText,
+          data: data,
+          error: !response.ok ? data.error : undefined,
+          timing: Date.now() - Date.now(), // Will be calculated properly
+        },
+      });
+    } catch (error) {
+      console.error('Failed to replay request:', error);
+    }
+  };
+
   if (hasApiKey === false) {
     return (
       <div className="bg-yellow-900 border border-yellow-700 text-yellow-100 px-6 py-4 rounded-lg">
@@ -313,7 +341,7 @@ export function SwapWizard() {
         </div>
       )}
       
-      <DeveloperMode logs={logs} onClear={clearLogs} onOpen={handleDismissDevModeHint} />
+      <DeveloperMode logs={logs} onClear={clearLogs} onOpen={handleDismissDevModeHint} onReplayRequest={handleReplayRequest} />
     </div>
   );
 }

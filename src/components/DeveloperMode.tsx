@@ -8,9 +8,10 @@ interface DeveloperModeProps {
   logs: ApiLogEntry[];
   onClear: () => void;
   onOpen?: () => void;
+  onReplayRequest?: (log: ApiLogEntry) => void;
 }
 
-export function DeveloperMode({ logs, onClear, onOpen }: DeveloperModeProps) {
+export function DeveloperMode({ logs, onClear, onOpen, onReplayRequest }: DeveloperModeProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedLog, setSelectedLog] = useState<ApiLogEntry | null>(null);
   const [hasTriggeredOnOpen, setHasTriggeredOnOpen] = useState(false);
@@ -356,26 +357,46 @@ ${Object.entries(request.headers || {}).map(([k, v]) => `    '${k}': '${v}'`).jo
           ) : (
             <div className="divide-y divide-gray-800">
               {logs.map((log) => (
-                <button
+                <div
                   key={log.id}
-                  onClick={() => setSelectedLog(log)}
-                  className={`w-full text-left p-3 hover:bg-gray-900 transition-colors ${
+                  className={`group hover:bg-gray-900 transition-colors ${
                     selectedLog?.id === log.id ? 'bg-gray-900 border-l-2 border-green-500' : ''
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-1">
-                    <code className="text-xs text-gray-400">{log.method}</code>
-                    <span className={`text-xs font-medium ${getStatusColor(log.response.status)}`}>
-                      {log.response.status}
-                    </span>
-                  </div>
-                  <div className="text-xs text-gray-500 truncate">
-                    {new URL(log.url).pathname}
-                  </div>
-                  <div className="text-xs text-gray-600 mt-1">
-                    {log.timestamp.toLocaleTimeString()}
-                  </div>
-                </button>
+                  <button
+                    onClick={() => setSelectedLog(log)}
+                    className="w-full text-left p-3"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <code className="text-xs text-gray-400">{log.method}</code>
+                      <span className={`text-xs font-medium ${getStatusColor(log.response.status)}`}>
+                        {log.response.status}
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-500 truncate">
+                      {new URL(log.url).pathname}
+                    </div>
+                    <div className="text-xs text-gray-600 mt-1">
+                      {log.timestamp.toLocaleTimeString()}
+                    </div>
+                  </button>
+                  {onReplayRequest && (
+                    <div className="px-3 pb-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onReplayRequest(log);
+                        }}
+                        className="text-xs text-green-500 hover:text-green-400 transition-colors flex items-center gap-1"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Replay Request
+                      </button>
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
           )
