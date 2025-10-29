@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { ApiLogEntry } from '../hooks/useApiLogger';
 import { JsonViewer } from './JsonViewer';
+import { TransactionViewer } from './TransactionViewer';
 
 interface DeveloperModeProps {
   logs: ApiLogEntry[];
@@ -469,6 +470,16 @@ ${Object.entries(request.headers || {}).map(([k, v]) => `    '${k}': '${v}'`).jo
                 <JsonViewer data={selectedLog.response.data} />
               </div>
             </div>
+
+            {/* Transaction Decoder for Order responses */}
+            {selectedLog.url.includes('/ultra/v1/order') && 
+             selectedLog.response.data?.transaction && 
+             selectedLog.response.status === 200 && (
+              <div>
+                <label className="text-xs text-gray-500 uppercase mb-2 block">Transaction Decoder</label>
+                <TransactionViewer base64Transaction={selectedLog.response.data.transaction} />
+              </div>
+            )}
 
             {selectedLog.response.error && (
               <div>
