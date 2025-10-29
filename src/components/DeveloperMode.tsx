@@ -43,27 +43,31 @@ export function DeveloperMode({ logs, onClear, onOpen }: DeveloperModeProps) {
 
   const generateCodeSnippet = (log: ApiLogEntry, format: 'fetch' | 'curl' | 'axios') => {
     const { method, url, request, response } = log;
+    const hasBody = request.body && Object.keys(request.body).length > 0;
 
     switch (format) {
       case 'fetch':
+        const fetchBody = hasBody ? `,\n  body: JSON.stringify(${JSON.stringify(request.body, null, 2)})` : '';
         return `const response = await fetch('${url}', {
   method: '${method}',
   headers: {
 ${Object.entries(request.headers || {}).map(([k, v]) => `    '${k}': '${v}'`).join(',\n')}
-  }
+  }${fetchBody}
 });`;
 
       case 'curl':
         const headers = Object.entries(request.headers || {})
           .map(([k, v]) => `-H '${k}: ${v}'`)
           .join(' \\\n  ');
-        return `curl -X ${method} '${url}' \\\n  ${headers}`;
+        const curlBody = hasBody ? ` \\\n  -d '${JSON.stringify(request.body)}'` : '';
+        return `curl -X ${method} '${url}' \\\n  ${headers}${curlBody}`;
 
       case 'axios':
+        const axiosBody = hasBody ? `,\n  data: ${JSON.stringify(request.body, null, 2)}` : '';
         return `const response = await axios.${method.toLowerCase()}('${url}', {
   headers: {
 ${Object.entries(request.headers || {}).map(([k, v]) => `    '${k}': '${v}'`).join(',\n')}
-  }
+  }${axiosBody}
 });`;
 
       default:
@@ -147,6 +151,17 @@ ${Object.entries(request.headers || {}).map(([k, v]) => `    '${k}': '${v}'`).jo
 
       {selectedLog && (
         <div className="border-t border-gray-800 h-96 overflow-y-auto bg-gray-900/50">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800">
+            <h3 className="text-sm font-medium text-white">Request Details</h3>
+            <button
+              onClick={() => setSelectedLog(null)}
+              className="p-1 text-gray-400 hover:text-white transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
           <div className="p-4 space-y-4">
             <div>
               <label className="text-xs text-gray-500 uppercase mb-2 block">Endpoint</label>
