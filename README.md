@@ -197,9 +197,34 @@ const usdcBalance = data.tokens['EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v']?
 
 Press Cmd/Ctrl + D to open Developer Mode.
 
+### Features
+
+**API Logs Tab:**
 - Real-time API requests and responses
-- Copyable code snippets
+- Interactive JSON viewer with click-to-copy paths
 - Request timing and status codes
+- Request replay functionality
+- Resizable request details panel
+
+**Resources Tab:**
+- GitHub repository clone command
+- Jupiter Ultra Swap documentation links
+- Portal access for API keys
+- Quick integration code snippets
+
+**Transaction Decoder:**
+- Decode base64 transactions from order responses
+- View instruction details and program IDs
+- Account information with signer/writable flags
+- Copy addresses and signatures
+
+### Usage
+
+1. **Viewing API Calls**: All Jupiter API calls are automatically logged with full request/response details
+2. **JSON Path Copy**: Click any field in the JSON viewer to copy its path (e.g., `data.outAmount`)
+3. **Request Replay**: Hover over any log entry and click "Replay Request" to resend with original parameters
+4. **Transaction Inspection**: For order responses, use the Transaction Decoder to see what the transaction actually does
+5. **Resources**: Switch to Resources tab for quick access to documentation and code examples
 
 ## Common Errors
 
@@ -233,9 +258,17 @@ This runs on Solana Mainnet. Real tokens will be swapped.
 
 ## Resources
 
-- [Jupiter Documentation](https://docs.jup.ag)
-- [Solana Web3.js](https://solana-labs.github.io/solana-web3.js/)
-- [Next.js Documentation](https://nextjs.org/docs)
+### Jupiter Documentation
+- [Ultra Swap Overview](https://dev.jup.ag/docs/ultra/index) - Complete Ultra Swap API documentation
+- [Get Started Guide](https://dev.jup.ag/docs/ultra/get-started) - Step-by-step integration guide
+- [API Reference](https://dev.jup.ag/api-reference/ultra) - Complete API endpoint documentation
+- [Ultra V3 Technical Deep Dive](https://dev.jup.ag/blog/ultra-v3) - Technical blog post on Ultra V3 features
+- [Jupiter Portal](https://portal.jup.ag) - Get your API key
+
+### Developer Tools
+- [Solana Web3.js](https://solana-labs.github.io/solana-web3.js/) - Solana JavaScript SDK
+- [Next.js Documentation](https://nextjs.org/docs) - React framework documentation
+- [Tailwind CSS](https://tailwindcss.com/docs) - Utility-first CSS framework
 
 ## License
 
