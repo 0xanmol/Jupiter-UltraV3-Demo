@@ -83,25 +83,36 @@ export function SwapWizard() {
 
   const handleReplayRequest = async (log: any) => {
     try {
+      // Reconstruct headers with actual API key
+      const headers = { ...log.request.headers };
+      if (headers['x-api-key'] === '***') {
+        headers['x-api-key'] = process.env.NEXT_PUBLIC_JUPITER_API_KEY || '';
+      }
+      
+      const startTime = Date.now();
       const response = await fetch(log.url, {
         method: log.method,
-        headers: log.request.headers,
+        headers,
         body: log.request.body ? JSON.stringify(log.request.body) : undefined,
       });
       
+      const timing = Date.now() - startTime;
       const data = await response.json();
       
       // Add the replayed request to logs
       addLog({
         method: log.method,
         url: log.url,
-        request: log.request,
+        request: {
+          headers: { ...headers, 'x-api-key': '***' }, // Mask API key in logs
+          body: log.request.body,
+        },
         response: {
           status: response.status,
           statusText: response.statusText,
           data: data,
           error: !response.ok ? data.error : undefined,
-          timing: Date.now() - Date.now(), // Will be calculated properly
+          timing,
         },
       });
     } catch (error) {
