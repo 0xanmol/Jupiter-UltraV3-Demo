@@ -40,7 +40,7 @@ export function decodeTransaction(base64Transaction: string): DecodedTransaction
     const transactionBuffer = Buffer.from(base64Transaction, 'base64');
     const transaction = VersionedTransaction.deserialize(transactionBuffer);
     
-    const signatures = transaction.signatures.map(sig => sig.toString('base64'));
+    const signatures = transaction.signatures.map(sig => Buffer.from(sig).toString('base64'));
     
     const message = transaction.message;
     
