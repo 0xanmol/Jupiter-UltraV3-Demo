@@ -13,6 +13,8 @@ export function DeveloperMode({ logs, onClear, onOpen }: DeveloperModeProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedLog, setSelectedLog] = useState<ApiLogEntry | null>(null);
   const [hasTriggeredOnOpen, setHasTriggeredOnOpen] = useState(false);
+  const [detailsHeight, setDetailsHeight] = useState(384); // Default h-96 (384px)
+  const [isDragging, setIsDragging] = useState(false);
 
   // Call onOpen callback when panel opens for the first time
   useEffect(() => {
@@ -33,6 +35,42 @@ export function DeveloperMode({ logs, onClear, onOpen }: DeveloperModeProps) {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Drag handlers for resizing details panel
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      
+      const viewportHeight = window.innerHeight;
+      const newHeight = viewportHeight - e.clientY;
+      const minHeight = 200;
+      const maxHeight = viewportHeight * 0.8;
+      
+      setDetailsHeight(Math.max(minHeight, Math.min(maxHeight, newHeight)));
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'ns-resize';
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isDragging]);
+
+  const handleDividerMouseDown = () => {
+    setIsDragging(true);
+  };
 
   const getStatusColor = (status: number) => {
     if (status >= 200 && status < 300) return 'text-green-400';
@@ -150,18 +188,35 @@ ${Object.entries(request.headers || {}).map(([k, v]) => `    '${k}': '${v}'`).jo
       </div>
 
       {selectedLog && (
-        <div className="border-t border-gray-800 h-96 overflow-y-auto bg-gray-900/50">
-          <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800">
-            <h3 className="text-sm font-medium text-white">Request Details</h3>
-            <button
-              onClick={() => setSelectedLog(null)}
-              className="p-1 text-gray-400 hover:text-white transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+        <>
+          {/* Draggable divider */}
+          <div
+            onMouseDown={handleDividerMouseDown}
+            className={`border-t border-gray-800 cursor-ns-resize hover:border-gray-600 transition-colors ${
+              isDragging ? 'border-gray-500' : ''
+            }`}
+            style={{ height: '8px' }}
+          >
+            <div className="h-full flex items-center justify-center">
+              <div className="w-8 h-1 bg-gray-600 rounded-full hover:bg-gray-500 transition-colors"></div>
+            </div>
           </div>
+          
+          <div 
+            className="overflow-y-auto bg-gray-900/50"
+            style={{ height: `${detailsHeight}px` }}
+          >
+            <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800">
+              <h3 className="text-sm font-medium text-white">Request Details</h3>
+              <button
+                onClick={() => setSelectedLog(null)}
+                className="p-1 text-gray-400 hover:text-white transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           <div className="p-4 space-y-4">
             <div>
               <label className="text-xs text-gray-500 uppercase mb-2 block">Endpoint</label>
@@ -237,7 +292,8 @@ ${Object.entries(request.headers || {}).map(([k, v]) => `    '${k}': '${v}'`).jo
               </div>
             </div>
           </div>
-        </div>
+          </div>
+        </>
       )}
 
       {logs.length > 0 && (
