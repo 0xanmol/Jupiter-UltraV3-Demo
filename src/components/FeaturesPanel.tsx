@@ -60,7 +60,7 @@ export function FeaturesPanel({ logs }: FeaturesPanelProps) {
     },
     {
       name: 'Meta Aggregation',
-      active: orderData?.routePlan && orderData.routePlan.length > 0,
+      active: !!(orderData?.routePlan && orderData.routePlan.length > 0),
       description: 'Compares multiple routers (Iris, JupiterZ, OKX, Dflow, Hashflow) to find the best price.',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
