@@ -18,11 +18,11 @@ interface FeatureStatus {
 export function FeaturesPanel({ logs }: FeaturesPanelProps) {
   const orderLog = logs
     .filter(log => log.url.includes('/ultra/v1/order') && log.response.status === 200)
-    .sort((a, b) => b.timestamp - a.timestamp)[0];
+    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())[0];
 
   const executeLog = logs
     .filter(log => log.url.includes('/ultra/v1/execute') && log.response.status === 200)
-    .sort((a, b) => b.timestamp - a.timestamp)[0];
+    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())[0];
 
   const orderData = orderLog?.response.data as OrderResponse | undefined;
   const executeData = executeLog?.response.data;
