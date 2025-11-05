@@ -21,3 +21,13 @@ out
 *.log
 npm-debug.log*
 node_modules
+
+# Demo scripts
+demo-script.md
+
+# Markdown files (except README.md)
+*.md
+!README.md
+
+# Comparison repository 
+/comparison-swap

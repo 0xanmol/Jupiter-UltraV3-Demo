@@ -27,6 +27,7 @@ export function TokenIcon({ mint, size = 32, className = '' }: TokenIconProps) {
         width={size}
         height={size}
         className="rounded-full"
+        style={{ width: 'auto', height: 'auto' }}
       />
     </div>
   );

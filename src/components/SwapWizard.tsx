@@ -8,6 +8,7 @@ import { Step2Preview } from './Step2Preview';
 import { Step3Execute } from './Step3Execute';
 import { DeveloperMode } from './DeveloperMode';
 import { useApiLogger } from '../hooks/useApiLogger';
+import { timedApiCall } from '../utils/apiTiming';
 
 export interface SwapConfig {
   inputMint: string;
@@ -16,31 +17,40 @@ export interface SwapConfig {
   slippage: number;
 }
 
+/**
+ * Order Response from /ultra/v1/order endpoint
+ * Per Jupiter Ultra API docs: https://dev.jup.ag/api-reference/ultra/order
+ */
 export interface OrderResponse {
-  transaction: string;
-  requestId: string;
-  slippageBps: number;
-  swapType: string;
-  feeMint?: string;
-  feeBps?: number;
-  outAmount?: number;
-  inAmount?: number;
-  priceImpactPct?: number;
+  transaction: string; // Base64 encoded unsigned transaction
+  requestId: string; // Used for /execute endpoint
+  slippageBps: number; // Slippage in basis points (RTSE optimized)
+  swapType: string; // Execution method (e.g., "iris", "jupiterz")
+  feeMint?: string; // Token mint for fees (from priority list)
+  feeBps?: number; // Total fee in basis points
+  outAmount?: number; // Output amount in native units (quoted)
+  inAmount?: number; // Input amount in native units
+  priceImpactPct?: number; // Price impact percentage
+  quoteLatency?: number; // API call latency in ms (not from API, calculated client-side)
   routePlan?: Array<{
-    name?: string;
-    percent?: number;
-    [key: string]: any;
+    name?: string; // Router name (e.g., "Iris", "JupiterZ", "OKX")
+    percent?: number; // Percentage of route split
+    [key: string]: any; // Additional route-specific fields
   }>;
 }
 
+/**
+ * Execute Response from /ultra/v1/execute endpoint
+ * Per Jupiter Ultra API docs: https://dev.jup.ag/api-reference/ultra/execute
+ */
 export interface ExecuteResponse {
   status: 'Success' | 'Failed' | 'Pending';
-  signature?: string;
-  error?: string;
-  outAmount?: number;
-  inAmount?: number;
-  executedOutAmount?: number;
-  executedInAmount?: number;
+  signature?: string; // Transaction signature
+  error?: string; // Error message if failed
+  outAmount?: number; // Output amount in native units (may be present)
+  inAmount?: number; // Input amount in native units (may be present)
+  executedOutAmount?: number; // Actual executed output amount (Ultra V3 feature)
+  executedInAmount?: number; // Actual executed input amount (Ultra V3 feature)
 }
 
 export function SwapWizard() {
@@ -92,40 +102,42 @@ export function SwapWizard() {
 
   const handleReplayRequest = async (log: any) => {
     try {
-      // Reconstruct headers with actual API key
       const headers = { ...log.request.headers };
       if (headers['x-api-key'] === '***') {
         headers['x-api-key'] = process.env.NEXT_PUBLIC_JUPITER_API_KEY || '';
       }
       
-      const startTime = Date.now();
-      const response = await fetch(log.url, {
-        method: log.method,
-        headers,
-        body: log.request.body ? JSON.stringify(log.request.body) : undefined,
+      const { response, timeElapsed } = await timedApiCall(async () => {
+        const res = await fetch(log.url, {
+          method: log.method,
+          headers,
+          body: log.request.body ? JSON.stringify(log.request.body) : undefined,
+        });
+        return {
+          ok: res.ok,
+          status: res.status,
+          statusText: res.statusText,
+          data: await res.json(),
+        };
       });
       
-      const timing = Date.now() - startTime;
-      const data = await response.json();
-      
-      // Add the replayed request to logs
       addLog({
         method: log.method,
         url: log.url,
         request: {
-          headers: { ...headers, 'x-api-key': '***' }, // Mask API key in logs
+          headers: { ...headers, 'x-api-key': '***' },
           body: log.request.body,
         },
         response: {
           status: response.status,
           statusText: response.statusText,
-          data: data,
-          error: !response.ok ? data.error : undefined,
-          timing,
+          data: response.data,
+          error: !response.ok ? response.data.error : undefined,
+          timing: timeElapsed,
         },
       });
     } catch (error) {
-      console.error('Failed to replay request:', error);
+      // Silent fail for replay
     }
   };
 
@@ -156,13 +168,17 @@ export function SwapWizard() {
   };
 
   const handleStep2Complete = (order: OrderResponse) => {
+    setError(null);
+    // Set order first, then transition to step 3 to avoid flash of old UI
     setOrderResponse(order);
     setIsTransitioning(true);
-    setTimeout(() => {
-      setCurrentStep(3);
-      setIsTransitioning(false);
-    }, 300);
-    setError(null);
+    // Use requestAnimationFrame to ensure order state is updated before step change
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setCurrentStep(3);
+        setIsTransitioning(false);
+      });
+    });
   };
 
   const handleStep3Complete = (result: ExecuteResponse) => {
@@ -209,35 +225,6 @@ export function SwapWizard() {
 
   return (
     <div className="bg-gray-950 border border-gray-800 rounded-xl p-8 relative">
-      {/* Developer Mode Hint */}
-      {showDevModeHint && (
-        <div className="fixed top-6 right-6 z-40 max-w-sm bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg shadow-2xl border border-green-400/50 p-4 animate-slide-in-up">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                </svg>
-                <p className="text-white font-semibold text-sm">Developer Mode</p>
-              </div>
-              <p className="text-green-50 text-xs mb-2">
-                See live API calls and copy code snippets
-              </p>
-              <p className="text-green-100 text-xs font-mono bg-green-600/30 px-2 py-1 rounded">
-                Press Cmd+D (Mac) or Ctrl+D (Windows/Linux)
-              </p>
-            </div>
-            <button
-              onClick={handleDismissDevModeHint}
-              className="flex-shrink-0 text-white hover:text-green-100 transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Success Animation Overlay */}
       <div className={`fixed inset-0 bg-black/80 flex items-center justify-center z-50 transition-opacity duration-500 ${showSuccessAnimation ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
@@ -326,10 +313,10 @@ export function SwapWizard() {
                 />
               )}
 
-              {currentStep === 3 && (
+              {currentStep === 3 && orderResponse && (
                 <Step3Execute
                   config={swapConfig}
-                  order={orderResponse!}
+                  order={orderResponse}
                   onComplete={handleStep3Complete}
                   onError={setError}
                   onBack={() => setCurrentStep(2)}

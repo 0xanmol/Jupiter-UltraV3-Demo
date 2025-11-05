@@ -1,10 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useWallet } from '@jup-ag/wallet-adapter';
 import { VersionedTransaction } from '@solana/web3.js';
 import { SwapConfig, OrderResponse, ExecuteResponse } from './SwapWizard';
 import { ApiLogEntry } from '../hooks/useApiLogger';
+import { FeatureBadge } from './FeatureBadge';
+import { decodeTransaction } from '../utils/transactionDecoder';
+import { InfoTooltip } from './InfoTooltip';
+import { extractRouterName } from '../utils/routerExtractor';
+import { timedApiCall } from '../utils/apiTiming';
 
 interface Step3ExecuteProps {
   config: SwapConfig;
@@ -41,8 +46,26 @@ const TOKENS = [
 export function Step3Execute({ config, order, onComplete, onError, onBack, loading, setLoading, addLog }: Step3ExecuteProps) {
   const { signTransaction } = useWallet();
   const [executeResult, setExecuteResult] = useState<ExecuteResponse | null>(null);
+  const [transactionLandingTime, setTransactionLandingTime] = useState<number | null>(null);
+  const [executionLatency, setExecutionLatency] = useState<number | null>(null);
+  const [isGasless, setIsGasless] = useState<boolean>(false);
+  const [executionError, setExecutionError] = useState<string | null>(null);
 
   const getTokenByMint = (mint: string) => TOKENS.find(token => token.mint === mint);
+
+  const checkGaslessTransaction = () => {
+    try {
+      const decoded = decodeTransaction(order.transaction);
+      if (decoded && decoded.message.header.numRequiredSignatures > 1) {
+        setIsGasless(true);
+      }
+    } catch (e) {
+      // Ignore
+    }
+  };
+  useEffect(() => {
+    checkGaslessTransaction();
+  }, [order.transaction]);
 
   const executeSwap = async () => {
     if (!signTransaction) {
@@ -52,6 +75,7 @@ export function Step3Execute({ config, order, onComplete, onError, onBack, loadi
 
     setLoading(true);
     setExecuteResult(null);
+    setExecutionError(null);
 
     try {
       const transactionBuffer = Buffer.from(order.transaction, 'base64');
@@ -65,19 +89,30 @@ export function Step3Execute({ config, order, onComplete, onError, onBack, loadi
         requestId: order.requestId,
       };
 
-      const startTime = Date.now();
+      const executionStartTime = performance.now();
       
-      const executeResponse = await fetch('https://api.jup.ag/ultra/v1/execute', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': process.env.NEXT_PUBLIC_JUPITER_API_KEY || '',
-        },
-        body: JSON.stringify(requestBody),
+      const { response: executeResponse, timeElapsed } = await timedApiCall(async () => {
+        const res = await fetch('https://api.jup.ag/ultra/v1/execute', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': process.env.NEXT_PUBLIC_JUPITER_API_KEY || '',
+          },
+          body: JSON.stringify(requestBody),
+        });
+        return {
+          ok: res.ok,
+          status: res.status,
+          statusText: res.statusText,
+          data: await res.json(),
+        };
       });
 
-      const timing = Date.now() - startTime;
-      const result = await executeResponse.json();
+      const landingTime = performance.now() - executionStartTime;
+      
+      setExecutionLatency(timeElapsed);
+      setTransactionLandingTime(landingTime);
+      const result = executeResponse.data;
 
       addLog?.({
         method: 'POST',
@@ -97,33 +132,36 @@ export function Step3Execute({ config, order, onComplete, onError, onBack, loadi
           statusText: executeResponse.statusText,
           data: result,
           error: !executeResponse.ok ? result.error : undefined,
-          timing,
+          timing: timeElapsed,
         },
       });
 
       if (!executeResponse.ok) {
-        throw new Error(result.error || `HTTP ${executeResponse.status}`);
+        const errorMessage = result.error || `HTTP ${executeResponse.status}`;
+        if (errorMessage.toLowerCase().includes('order not found') || 
+            errorMessage.toLowerCase().includes('expired') ||
+            executeResponse.status === 404) {
+          throw new Error('Order expired. Please go back and create a new order. Orders expire after a short time to ensure prices stay current.');
+        }
+        throw new Error(errorMessage);
       }
-      
-      // Extract executed amounts if available (may be in different fields)
       const executeResponseData: ExecuteResponse = {
         status: result.status || 'Success',
         signature: result.signature,
         error: result.error,
-        outAmount: result.outAmount || result.executedOutAmount,
-        inAmount: result.inAmount || result.executedInAmount,
-        executedOutAmount: result.executedOutAmount || result.outAmount,
-        executedInAmount: result.executedInAmount || result.inAmount,
+        executedOutAmount: result.executedOutAmount,
+        executedInAmount: result.executedInAmount,
+        outAmount: result.outAmount,
+        inAmount: result.inAmount,
       };
-      
-      // Add a small delay before showing success to make the transition smoother
       setTimeout(() => {
         setExecuteResult(executeResponseData);
         onComplete(executeResponseData);
       }, 500);
     } catch (error) {
-      console.error('Execute error:', error);
-      onError(error instanceof Error ? error.message : 'Failed to execute swap');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to execute swap';
+      setExecutionError(errorMessage);
+      onError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -135,124 +173,220 @@ export function Step3Execute({ config, order, onComplete, onError, onBack, loadi
 
   return (
     <div>
-      <h2 className="text-2xl font-semibold text-white mb-6">Execute Swap</h2>
+      <div className="mb-6">
+        <h2 className="text-2xl font-semibold text-white mb-2">Execute Swap</h2>
+        <p className="text-sm text-gray-400">Review and execute your swap</p>
+      </div>
       
-      {/* Swap Summary */}
-      <div className="mb-6 space-y-3 border border-gray-800 rounded-lg p-4">
-        <div className="flex items-center justify-between">
-          <div className="text-white font-semibold">{config.amount} {getTokenByMint(config.inputMint)?.symbol}</div>
-          <div className="text-gray-500">→</div>
-          <div className="text-white font-semibold">
-            {order.outAmount ? formatAmount(order.outAmount, getTokenByMint(config.outputMint)?.decimals || 6) : '...'} {getTokenByMint(config.outputMint)?.symbol}
+      <div className="mb-6 bg-gray-900 border border-gray-800 rounded-lg p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="text-center flex-1">
+            <div className="text-3xl font-bold text-white">{config.amount}</div>
+            <div className="text-sm text-gray-400 mt-1">{getTokenByMint(config.inputMint)?.symbol}</div>
+          </div>
+          <div className="text-gray-600 text-3xl mx-6">→</div>
+          <div className="text-center flex-1">
+            <div className="text-3xl font-bold text-white">
+              {order.outAmount ? formatAmount(order.outAmount, getTokenByMint(config.outputMint)?.decimals || 6) : '...'}
+            </div>
+            <div className="text-sm text-gray-400 mt-1">{getTokenByMint(config.outputMint)?.symbol}</div>
           </div>
         </div>
-        
-        {/* Protection Badge */}
-        <div className="flex items-center gap-2 border-t border-gray-800 pt-3">
-          <div className="flex items-center gap-1.5 text-xs text-green-400">
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
-            <span>MEV Protected</span>
-          </div>
+
+        <div className="space-y-3 border-t border-gray-800 pt-4">
+          {order.slippageBps !== undefined && order.slippageBps !== null && (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                <span className="text-sm text-gray-400">Slippage Protection</span>
+                <InfoTooltip content="Maximum acceptable price movement. RTSE calculates this automatically." />
+              </div>
+              <span className="text-sm font-semibold text-white">{(Number(order.slippageBps) / 100).toFixed(2)}%</span>
+            </div>
+          )}
+          
+          {order.priceImpactPct !== undefined && order.priceImpactPct !== null && (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                <span className="text-sm text-gray-400">Price Impact</span>
+                <InfoTooltip content="How much the swap moves market price. Lower is better." />
+              </div>
+              <span className="text-sm font-semibold text-white">{Number(order.priceImpactPct).toFixed(3)}%</span>
+            </div>
+          )}
+
+          {(() => {
+            const routerName = extractRouterName(order.routePlan, order.swapType);
+            return routerName ? (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-400">Router</span>
+                <span className="text-sm font-semibold text-white">{routerName}</span>
+              </div>
+            ) : null;
+          })()}
+
+          {order.swapType && (
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-400">Execution Method</span>
+              <span className="text-sm font-semibold text-white">{order.swapType.toUpperCase()}</span>
+            </div>
+          )}
+
         </div>
-        
-        {/* Slippage Protection */}
-        {order.slippageBps !== undefined && order.slippageBps !== null && (
-          <div className="flex items-center justify-between border-t border-gray-800 pt-3">
-            <span className="text-gray-500 text-sm">Slippage Protection</span>
-            <span className="text-green-400 font-semibold">{(Number(order.slippageBps) / 100).toFixed(2)}%</span>
-          </div>
-        )}
-        
-        {/* Price Impact */}
-        {order.priceImpactPct !== undefined && order.priceImpactPct !== null && (
-          <div className="flex items-center justify-between border-t border-gray-800 pt-3">
-            <span className="text-gray-500 text-sm">Price Impact</span>
-            <span className={`font-semibold ${
-              Number(order.priceImpactPct) < 1 ? 'text-green-400' : 
-              Number(order.priceImpactPct) < 3 ? 'text-yellow-400' : 
-              'text-red-400'
-            }`}>
-              {Number(order.priceImpactPct).toFixed(3)}%
-            </span>
-          </div>
-        )}
-        
-        {/* Execution Method */}
-        {(order as any).swapType && (
-          <div className="flex items-center justify-between border-t border-gray-800 pt-3">
-            <span className="text-gray-500 text-sm">Execution Method</span>
-            <span className="text-green-400 font-semibold capitalize">{((order as any).swapType as string).toUpperCase()}</span>
-          </div>
-        )}
-        
-        {/* Router */}
-        {order.routePlan?.[0]?.name && (
-          <div className="flex items-center justify-between border-t border-gray-800 pt-3">
-            <span className="text-gray-500 text-sm">Router</span>
-            <span className="text-green-400 font-semibold">{order.routePlan[0].name}</span>
-          </div>
-        )}
-        
-        <div className="text-xs text-gray-500 font-mono border-t border-gray-800 pt-3">
-          {order.requestId.slice(0, 16)}
+
+        <div className="flex flex-wrap items-center gap-2 border-t border-gray-800 pt-4 mt-4">
+          <FeatureBadge
+            icon={
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+            }
+            label="MEV Protected"
+            description="34x better MEV protection. Jupiter Beam routes through our infrastructure."
+            stat="34x"
+            color="green"
+          />
+          
+          <FeatureBadge
+            icon={
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            }
+            label="Predictive Execution"
+            description="Routes simulated on-chain before execution for better prices."
+            color="blue"
+          />
+          
+          {order.slippageBps !== undefined && order.slippageBps !== null && (
+            <FeatureBadge
+              icon={
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              }
+              label="RTSE Optimized"
+              description="Automatic slippage calculation based on token volatility."
+              color="purple"
+            />
+          )}
+          
+          {isGasless && (
+            <FeatureBadge
+              icon={
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              }
+              label="Gasless"
+              description="Gas fees covered automatically."
+              color="yellow"
+            />
+          )}
         </div>
       </div>
       
-      {/* Executed vs Quoted Comparison (After Execution) */}
       {executeResult && executeResult.status === 'Success' && (
-        (executeResult.executedOutAmount || executeResult.outAmount) && order.outAmount && (
-          <div className="mb-6 border border-gray-800 rounded-lg p-4 bg-gray-900/50">
-            <div className="text-sm font-semibold text-white mb-3">Execution Results</div>
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400">Quoted Amount</span>
-                <span className="text-gray-300">
-                  {formatAmount(order.outAmount, getTokenByMint(config.outputMint)?.decimals || 6)} {getTokenByMint(config.outputMint)?.symbol}
-                </span>
+        <>
+          {(executeResult.executedOutAmount || executeResult.outAmount) && order.outAmount && (
+            <div className="mb-6 bg-gray-900 border border-gray-800 rounded-lg p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-white">Execution Results</h3>
+                {((executeResult.executedOutAmount || executeResult.outAmount || 0) - order.outAmount) >= 0 && (
+                  <span className="text-xs font-medium text-white bg-gray-800 px-2 py-1 rounded">Better Than Quoted</span>
+                )}
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400">Executed Amount</span>
-                <span className="text-white font-semibold">
-                  {formatAmount(
-                    executeResult.executedOutAmount || executeResult.outAmount || 0, 
-                    getTokenByMint(config.outputMint)?.decimals || 6
-                  )} {getTokenByMint(config.outputMint)?.symbol}
-                </span>
-              </div>
-              {(executeResult.executedOutAmount || executeResult.outAmount) && (
-                <div className="flex items-center justify-between border-t border-gray-800 pt-2 mt-2">
-                  <span className="text-gray-400">Difference</span>
-                  <span className={`font-semibold ${
-                    ((executeResult.executedOutAmount || executeResult.outAmount || 0) - order.outAmount) >= 0 
-                      ? 'text-green-400' 
-                      : 'text-red-400'
-                  }`}>
-                    {((executeResult.executedOutAmount || executeResult.outAmount || 0) - order.outAmount) >= 0 ? '+' : ''}
+              
+              <div className="space-y-3 border-t border-gray-800 pt-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-400">Quoted Amount</span>
+                  <span className="text-sm font-semibold text-white">
+                    {formatAmount(order.outAmount, getTokenByMint(config.outputMint)?.decimals || 6)} {getTokenByMint(config.outputMint)?.symbol}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-400">Executed Amount</span>
+                  <span className="text-sm font-semibold text-white">
                     {formatAmount(
-                      ((executeResult.executedOutAmount || executeResult.outAmount || 0) - order.outAmount) / Math.pow(10, getTokenByMint(config.outputMint)?.decimals || 6),
+                      executeResult.executedOutAmount || executeResult.outAmount || 0, 
                       getTokenByMint(config.outputMint)?.decimals || 6
                     )} {getTokenByMint(config.outputMint)?.symbol}
-                    {' '}
-                    ({(((executeResult.executedOutAmount || executeResult.outAmount || 0) - order.outAmount) / order.outAmount * 100).toFixed(3)}%)
                   </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-400">Difference</span>
+                  <span className="text-sm font-semibold text-white">
+                    {((executeResult.executedOutAmount || executeResult.outAmount || 0) - order.outAmount) >= 0 ? '+' : ''}
+                    {(((executeResult.executedOutAmount || executeResult.outAmount || 0) - order.outAmount) / order.outAmount * 100).toFixed(4)}%
+                    {' '}({formatAmount(
+                      ((executeResult.executedOutAmount || executeResult.outAmount || 0) - order.outAmount) / Math.pow(10, getTokenByMint(config.outputMint)?.decimals || 6),
+                      getTokenByMint(config.outputMint)?.decimals || 6
+                    )} {getTokenByMint(config.outputMint)?.symbol})
+                  </span>
+                </div>
+              </div>
+
+              {(order.quoteLatency !== undefined || executionLatency !== null || transactionLandingTime !== null) && (
+                <div className="space-y-3 border-t border-gray-800 pt-4 mt-4">
+                  <div className="text-xs text-gray-400 mb-2">Performance Metrics</div>
+                  {order.quoteLatency !== undefined && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-400">Quote API Latency</span>
+                      <span className="text-sm font-semibold text-white">{order.quoteLatency}ms</span>
+                    </div>
+                  )}
+                  {executionLatency !== null && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-400">Execute API Latency</span>
+                      <span className="text-sm font-semibold text-white">{executionLatency}ms</span>
+                    </div>
+                  )}
+                  {executionLatency !== null && order.quoteLatency !== undefined && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-400">Total API Time</span>
+                      <span className="text-sm font-semibold text-white">{order.quoteLatency + executionLatency}ms</span>
+                    </div>
+                  )}
+                  {transactionLandingTime !== null && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-400">Transaction Landing</span>
+                      <span className="text-sm font-semibold text-white">
+                        {transactionLandingTime < 400 ? `${transactionLandingTime.toFixed(0)}ms` : `${(transactionLandingTime / 1000).toFixed(2)}s`}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {(executionError || (executeResult && executeResult.error)) && (
+        <div className="mb-6 border border-red-500/30 rounded-lg p-4 bg-gray-900">
+          <div className="flex items-start gap-3">
+            <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div className="flex-1">
+              <div className="text-sm text-red-500 font-medium mb-1">
+                {executionError || executeResult?.error}
+              </div>
+              {executionError && executionError.includes('expired') && (
+                <div className="mt-3">
+                  <button
+                    onClick={onBack}
+                    className="text-sm text-blue-400 hover:text-blue-300 underline"
+                  >
+                    Go back and create a new order →
+                  </button>
                 </div>
               )}
             </div>
           </div>
-        )
-      )}
-
-      {/* Error Display */}
-      {executeResult && executeResult.error && (
-        <div className="mb-6 border border-red-500/30 rounded-lg p-4 bg-gray-900">
-          <div className="text-sm text-red-500">{executeResult.error}</div>
         </div>
       )}
 
-      {/* Action Buttons */}
-      {!executeResult && (
+      {!executeResult || executionError ? (
         <div className="flex space-x-4">
           <button
             onClick={onBack}
@@ -262,17 +396,18 @@ export function Step3Execute({ config, order, onComplete, onError, onBack, loadi
             Back
           </button>
           
-          <button
-            onClick={executeSwap}
-            disabled={loading}
-            className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-gray-800 text-white font-semibold py-3 px-4 rounded-lg transition-colors"
-          >
-            {loading ? 'Executing...' : 'Execute Swap'}
-          </button>
+          {!executionError && (
+            <button
+              onClick={executeSwap}
+              disabled={loading}
+              className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-gray-800 text-white font-semibold py-3 px-4 rounded-lg transition-colors"
+            >
+              {loading ? 'Executing...' : 'Execute Swap'}
+            </button>
+          )}
         </div>
-      )}
+      ) : null}
 
-      {/* Loading State */}
       {loading && (
         <div className="mt-4 text-center">
           <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-green-500"></div>

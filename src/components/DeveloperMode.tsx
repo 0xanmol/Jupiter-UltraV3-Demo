@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { ApiLogEntry } from '../hooks/useApiLogger';
 import { JsonViewer } from './JsonViewer';
 import { TransactionViewer } from './TransactionViewer';
+import { FeaturesPanel } from './FeaturesPanel';
 
 interface DeveloperModeProps {
   logs: ApiLogEntry[];
@@ -18,7 +19,7 @@ export function DeveloperMode({ logs, onClear, onOpen, onReplayRequest }: Develo
   const [hasTriggeredOnOpen, setHasTriggeredOnOpen] = useState(false);
   const [detailsHeight, setDetailsHeight] = useState(384); // Default h-96 (384px)
   const [isDragging, setIsDragging] = useState(false);
-  const [activeTab, setActiveTab] = useState<'logs' | 'resources'>('logs');
+  const [activeTab, setActiveTab] = useState<'logs' | 'resources' | 'features'>('logs');
 
   // Call onOpen callback when panel opens for the first time
   useEffect(() => {
@@ -145,6 +146,9 @@ ${Object.entries(request.headers || {}).map(([k, v]) => `    '${k}': '${v}'`).jo
               Copy
             </button>
           </div>
+          <p className="text-xs text-gray-500 mt-2">
+            See how this demo is built - simple API calls, no RPC complexity
+          </p>
         </div>
       </div>
 
@@ -282,24 +286,32 @@ ${Object.entries(request.headers || {}).map(([k, v]) => `    '${k}': '${v}'`).jo
     </div>
   );
 
+  // Collapsed state - floating button
   if (!isOpen) {
     return (
       <div className="fixed bottom-4 right-4 z-50">
         <button
           onClick={() => setIsOpen(true)}
-          className="bg-gray-800 border border-gray-700 px-4 py-2 rounded-lg text-white text-sm font-medium hover:bg-gray-700 transition-colors flex items-center gap-2"
+          className="bg-gray-800 border border-gray-700 px-4 py-2 rounded-lg text-white text-sm font-medium hover:bg-gray-700 transition-colors flex items-center gap-2 shadow-lg"
+          title="Developer Mode (Press Cmd/Ctrl + D)"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
           </svg>
           Developer Mode
+          {logs.length > 0 && (
+            <span className="text-xs text-green-400 px-2 py-0.5 bg-green-500/10 rounded-full">
+              {logs.length}
+            </span>
+          )}
         </button>
       </div>
     );
   }
 
+  // Expanded sidebar state
   return (
-    <div className="fixed inset-y-0 right-0 w-96 z-50 flex flex-col bg-gray-950 border-l border-gray-800 shadow-2xl">
+    <div className="fixed inset-y-0 right-0 w-96 z-40 flex flex-col bg-gray-950 border-l border-gray-800 shadow-2xl">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-semibold text-white">Developer Mode</h2>
@@ -312,6 +324,7 @@ ${Object.entries(request.headers || {}).map(([k, v]) => `    '${k}': '${v}'`).jo
         <button
           onClick={() => setIsOpen(false)}
           className="p-1 text-gray-400 hover:text-white transition-colors"
+          title="Collapse (Cmd/Ctrl + D)"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -331,6 +344,16 @@ ${Object.entries(request.headers || {}).map(([k, v]) => `    '${k}': '${v}'`).jo
             }`}
           >
             API Logs {logs.length > 0 && `(${logs.length})`}
+          </button>
+          <button
+            onClick={() => setActiveTab('features')}
+            className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'features'
+                ? 'text-white border-b-2 border-green-500'
+                : 'text-gray-400 hover:text-gray-300'
+            }`}
+          >
+            Features
           </button>
           <button
             onClick={() => setActiveTab('resources')}
@@ -401,6 +424,10 @@ ${Object.entries(request.headers || {}).map(([k, v]) => `    '${k}': '${v}'`).jo
               ))}
             </div>
           )
+        ) : activeTab === 'features' ? (
+          <div className="p-4">
+            <FeaturesPanel logs={logs} />
+          </div>
         ) : (
           <ResourcesPanel />
         )}

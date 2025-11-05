@@ -5,6 +5,8 @@ import { useWallet } from '@jup-ag/wallet-adapter';
 import { SwapConfig } from './SwapWizard';
 import { TokenIcon } from './TokenIcon';
 import { ApiLogEntry } from '../hooks/useApiLogger';
+import { timedApiCall } from '../utils/apiTiming';
+import { ContextualHint } from './ContextualHint';
 
 interface Step1ConfigureProps {
   config: SwapConfig;
@@ -56,17 +58,21 @@ export function Step1Configure({ config, onComplete, onError, loading, setLoadin
 
       try {
         const url = `https://api.jup.ag/ultra/v1/holdings/${publicKey.toBase58()}`;
-        const startTime = Date.now();
         
-        const response = await fetch(url, {
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': process.env.NEXT_PUBLIC_JUPITER_API_KEY || '',
-          },
+        const { response, timeElapsed } = await timedApiCall(async () => {
+          const res = await fetch(url, {
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': process.env.NEXT_PUBLIC_JUPITER_API_KEY || '',
+            },
+          });
+          return {
+            ok: res.ok,
+            status: res.status,
+            statusText: res.statusText,
+            data: await res.json(),
+          };
         });
-
-        const timing = Date.now() - startTime;
-        const data = await response.json();
 
         addLog?.({
           method: 'GET',
@@ -80,9 +86,9 @@ export function Step1Configure({ config, onComplete, onError, loading, setLoadin
           response: {
             status: response.status,
             statusText: response.statusText,
-            data: data,
-            error: !response.ok ? data.error : undefined,
-            timing,
+            data: response.data,
+            error: !response.ok ? response.data.error : undefined,
+            timing: timeElapsed,
           },
         });
 
@@ -92,9 +98,9 @@ export function Step1Configure({ config, onComplete, onError, loading, setLoadin
         }
 
         if (localConfig.inputMint === 'So11111111111111111111111111111111111111112') {
-          setBalance(data.uiAmountString || '0');
-        } else if (data.tokens && data.tokens[localConfig.inputMint]) {
-          const tokenAccounts = data.tokens[localConfig.inputMint];
+          setBalance(response.data.uiAmountString || '0');
+        } else if (response.data.tokens && response.data.tokens[localConfig.inputMint]) {
+          const tokenAccounts = response.data.tokens[localConfig.inputMint];
           if (Array.isArray(tokenAccounts) && tokenAccounts.length > 0) {
             setBalance(tokenAccounts[0].uiAmountString || '0');
           } else {
@@ -104,7 +110,6 @@ export function Step1Configure({ config, onComplete, onError, loading, setLoadin
           setBalance('0');
         }
       } catch (error) {
-        console.error('Balance fetch failed:', error);
         setBalance('...');
       }
     };
@@ -152,7 +157,11 @@ export function Step1Configure({ config, onComplete, onError, loading, setLoadin
 
   return (
     <div>
-      <h2 className="text-2xl font-semibold text-white mb-6">Configure Your Swap</h2>
+      <div className="mb-4">
+        <h2 className="text-2xl font-semibold text-white mb-2">Configure Your Swap</h2>
+        <p className="text-sm text-gray-400">Ultra handles routing, slippage, and execution automatically</p>
+      </div>
+      
       
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Input Token */}
