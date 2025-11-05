@@ -325,37 +325,6 @@ export function Step3Execute({ config, order, onComplete, onError, onBack, loadi
                 </div>
               </div>
 
-              {(order.quoteLatency !== undefined || executionLatency !== null || transactionLandingTime !== null) && (
-                <div className="space-y-3 border-t border-gray-800 pt-4 mt-4">
-                  <div className="text-xs text-gray-400 mb-2">Performance Metrics</div>
-                  {order.quoteLatency !== undefined && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-400">Quote API Latency</span>
-                      <span className="text-sm font-semibold text-white">{order.quoteLatency}ms</span>
-                    </div>
-                  )}
-                  {executionLatency !== null && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-400">Execute API Latency</span>
-                      <span className="text-sm font-semibold text-white">{executionLatency}ms</span>
-                    </div>
-                  )}
-                  {executionLatency !== null && order.quoteLatency !== undefined && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-400">Total API Time</span>
-                      <span className="text-sm font-semibold text-white">{order.quoteLatency + executionLatency}ms</span>
-                    </div>
-                  )}
-                  {transactionLandingTime !== null && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-400">Transaction Landing</span>
-                      <span className="text-sm font-semibold text-white">
-                        {transactionLandingTime < 400 ? `${transactionLandingTime.toFixed(0)}ms` : `${(transactionLandingTime / 1000).toFixed(2)}s`}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           )}
         </>

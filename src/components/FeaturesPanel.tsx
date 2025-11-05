@@ -133,31 +133,6 @@ export function FeaturesPanel({ logs }: FeaturesPanelProps) {
             </div>
           </div>
 
-          {(quoteTime || executeTime) && (
-            <div>
-              <h3 className="text-sm font-semibold text-white mb-3">Performance</h3>
-              <div className="space-y-2">
-                {quoteTime && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-400">Quote Latency</span>
-                    <span className="text-white font-medium">{quoteTime}ms</span>
-                  </div>
-                )}
-                {executeTime && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-400">Execute Latency</span>
-                    <span className="text-white font-medium">{executeTime}ms</span>
-                  </div>
-                )}
-                {totalTime && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-400">Total Time</span>
-                    <span className="text-white font-medium">{totalTime}ms</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
           {orderData && (() => {
             const routerName = extractRouterName(orderData.routePlan, orderData.swapType);

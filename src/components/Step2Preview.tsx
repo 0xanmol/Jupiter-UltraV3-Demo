@@ -234,12 +234,6 @@ export function Step2Preview({ config, onComplete, onError, onBack, loading, set
               </div>
             )}
 
-            {quote.orderResponse?.quoteLatency !== undefined && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-400">Quote Latency</span>
-                <span className="text-sm font-semibold text-white">{quote.orderResponse.quoteLatency}ms</span>
-              </div>
-            )}
           </div>
         )}
 
