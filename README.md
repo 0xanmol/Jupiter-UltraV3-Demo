@@ -1,122 +1,42 @@
 # Ultra Swap Wizard
 
-Reference implementation of the Jupiter Ultra Swap API, demonstrating the complete swap workflow.
+Reference implementation of Jupiter Ultra Swap API. Shows how to build swaps without managing RPC endpoints or transaction building.
 
-## Overview
+## What This Does
 
-This demonstrates the complete swap workflow using Jupiter Ultra Swap API:
-
-1. Configure swap parameters (tokens, amount, slippage)
-2. Get quote with unsigned transaction from Jupiter
-3. Sign and execute the swap
+Simple three-step swap flow:
+1. Configure tokens and amount
+2. Get quote with pre-built transaction
+3. Sign and execute
 
 ## Why Ultra V3?
 
-### The Traditional Way ❌
-```typescript
-// You need to:
-// 1. Set up RPC provider
-const connection = new Connection('https://api.mainnet-beta.solana.com');
-// 2. Build transaction yourself
-// 3. Calculate accounts, compute budget, etc.
-// 4. Handle quote refresh
-// 5. Manage slippage manually
-// 6. Handle errors from multiple sources
-```
+Traditional swaps need RPC setup, transaction building, compute budgets, slippage management. Ultra handles all of that.
 
-### The Ultra V3 Way ✅
+**The Ultra way:**
 ```typescript
-// Jupiter handles everything for you:
-// 1. Get quote with pre-built transaction
+// Get quote
 const quote = await fetch('https://api.jup.ag/ultra/v1/order?...');
-// 2. Sign it
-const signed = await signTransaction(transaction);
-// 3. Submit it
+// Sign and execute
 const result = await fetch('https://api.jup.ag/ultra/v1/execute', ...);
 ```
 
-**Key Ultra V3 Benefits:**
-- ✅ **Zero RPC complexity** - No need for Solana RPC endpoints
-- ✅ **Pre-built transactions** - Jupiter creates optimized transactions ready to sign
-- ✅ **Simplified balance fetching** - Use `/holdings` endpoint instead of RPC calls
-- ✅ **Built-in routing** - Automatic DEX aggregation and route optimization
-- ✅ **Production ready** - Handles all edge cases (insufficient liquidity, slippage, etc.)
-- ✅ **Single API key** - Simple authentication, no infrastructure needed
+That's it. No RPC, no transaction serialization, no infrastructure to manage.
 
-## Architecture
+## Quick Start
 
-```
-src/
-├── app/
-│   ├── layout.tsx       # Root layout with UnifiedWalletProvider
-│   ├── page.tsx         # Main page
-│   └── globals.css      # Styles
-├── components/
-│   ├── SwapWizard.tsx   # Step management
-│   ├── Step1Configure.tsx
-│   ├── Step2Preview.tsx
-│   ├── Step3Execute.tsx
-│   ├── DeveloperMode.tsx
-│   └── TokenIcon.tsx
-└── hooks/
-    └── useApiLogger.ts
-```
-
-## Getting Started
-
-Install dependencies:
 ```bash
 npm install
-```
-
-Set up your API key:
-1. Copy `.env.example` to `.env.local`
-2. Get your API key from [Jupiter Portal](https://portal.jup.ag)
-3. Add your API key to `.env.local`
-
-```bash
 cp .env.example .env.local
-# Then edit .env.local with your API key
-```
-
-Run development server:
-```bash
+# Add your API key from https://portal.jup.ag
 npm run dev
 ```
 
-Open http://localhost:3000
-
-## Jupiter API Integration
-
-### Wallet Setup
-
-Wrap app with UnifiedWalletProvider:
-
-```typescript
-import { UnifiedWalletProvider } from '@jup-ag/wallet-adapter';
-
-<UnifiedWalletProvider config={{
-  env: "mainnet-beta",
-  autoConnect: false,
-}}>
-  {/* App */}
-</UnifiedWalletProvider>
-```
-
-Access wallet state:
-```typescript
-const { publicKey, signTransaction } = useWallet();
-```
+## How It Works
 
 ### Getting a Quote
 
-Convert amount to native units and request quote:
-
 ```typescript
-const amountInNativeUnits = Math.floor(
-  parseFloat(uiAmount) * Math.pow(10, tokenDecimals)
-);
-
 const url = new URL('https://api.jup.ag/ultra/v1/order');
 url.searchParams.set('inputMint', inputMint);
 url.searchParams.set('outputMint', outputMint);
@@ -132,20 +52,9 @@ const response = await fetch(url.toString(), {
 const data = await response.json();
 ```
 
-Response:
-```typescript
-{
-  transaction: string;      // Base64 unsigned transaction
-  requestId: string;         // Unique request ID
-  outAmount: number;
-  inAmount: number;
-  slippageBps: number;
-}
-```
+You get back a base64-encoded transaction ready to sign, plus routing details, slippage, price impact - everything you need.
 
-### Executing a Swap
-
-Deserialize, sign, and submit:
+### Executing
 
 ```typescript
 const transaction = VersionedTransaction.deserialize(
@@ -167,108 +76,80 @@ const response = await fetch('https://api.jup.ag/ultra/v1/execute', {
 });
 ```
 
-### Token Amount Conversion
+Jupiter handles routing, execution, and polling. You get the result when it lands.
 
-```typescript
-// UI to native units
-const native = Math.floor(uiAmount * Math.pow(10, decimals));
+### Getting Balances
 
-// Native to UI
-const ui = nativeAmount / Math.pow(10, decimals);
-```
-
-### Balance Fetching
-
-Use Jupiter's `/holdings` endpoint - no RPC required:
+Use the `/holdings` endpoint instead of RPC:
 
 ```typescript
 const response = await fetch(`https://api.jup.ag/ultra/v1/holdings/${walletAddress}`, {
-  headers: {
-    'x-api-key': 'your-api-key'
-  }
+  headers: { 'x-api-key': 'your-api-key' }
 });
-
 const data = await response.json();
-const solBalance = data.uiAmountString; // SOL balance as string
-const usdcBalance = data.tokens['EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v']?.uiAmountString; // Token balances
+const solBalance = data.uiAmountString;
 ```
 
 ## Developer Mode
 
-Press Cmd/Ctrl + D to open Developer Mode.
+Press Cmd/Ctrl + D (or click the bottom-right button) to open Developer Mode.
 
-### Features
+**API Logs tab:**
+- All API calls logged automatically
+- Click any request to see full payload
+- JSON viewer with click-to-copy paths
+- Replay requests (hover over any log entry)
+- Transaction decoder for order responses
 
-**API Logs Tab:**
-- Real-time API requests and responses
-- Interactive JSON viewer with click-to-copy paths
-- Request timing and status codes
-- Request replay functionality
-- Resizable request details panel
+**Features tab:**
+- Shows active Ultra V3 features (MEV Protection, Predictive Execution, RTSE, etc.)
+- Router information (Iris, JupiterZ, Meta Aggregation)
+- Execution results comparison
 
-**Resources Tab:**
-- GitHub repository clone command
-- Jupiter Ultra Swap documentation links
-- Portal access for API keys
-- Quick integration code snippets
+**Resources tab:**
+- GitHub repo clone command
+- Jupiter documentation links
+- Quick code snippets
 
-**Transaction Decoder:**
-- Decode base64 transactions from order responses
-- View instruction details and program IDs
-- Account information with signer/writable flags
-- Copy addresses and signatures
+## What You'll See
 
-### Usage
+**Step 2 (Quote):**
+- Routing details showing which DEXes are used
+- Price impact and slippage protection
+- Router information
 
-1. **Viewing API Calls**: All Jupiter API calls are automatically logged with full request/response details
-2. **JSON Path Copy**: Click any field in the JSON viewer to copy its path (e.g., `data.outAmount`)
-3. **Request Replay**: Hover over any log entry and click "Replay Request" to resend with original parameters
-4. **Transaction Inspection**: For order responses, use the Transaction Decoder to see what the transaction actually does
-5. **Resources**: Switch to Resources tab for quick access to documentation and code examples
+**Step 3 (Execute):**
+- Quoted vs executed amount comparison
+- Feature badges showing active protections
+- Execution method and router details
 
-## Common Errors
+If you see routing percentages that add up to more than 100%, that's multi-hop routing - your swap goes through multiple DEXes in sequence for better prices.
 
-**Insufficient balance**
-- Check balance before submitting
+## Common Issues
 
-**Transaction expired**
-- Sign within ~60 seconds of getting quote
+**Insufficient balance** - Check your wallet balance before swapping.
 
-**No route available**
-- Adjust amount or try different token pair
+**Transaction expired** - Sign and execute within about 60 seconds of getting the quote.
 
-**403 Access forbidden**
-- Use connection from useWallet hook
+**No route found** - Try a different amount or token pair.
 
-## API Endpoints
+## API Endpoints Used
 
-This demo uses the Jupiter Ultra Swap API with API key authentication. All requests are made to `https://api.jup.ag/ultra/v1/`.
+- `GET /ultra/v1/holdings/{address}` - Get wallet balances
+- `GET /ultra/v1/order` - Get quote and transaction
+- `POST /ultra/v1/execute` - Execute signed transaction
 
-**Implemented Endpoints:**
-- `GET /ultra/v1/holdings/{address}` - Retrieve wallet token balances
-- `GET /ultra/v1/order` - Get swap quote and unsigned transaction
-- `POST /ultra/v1/execute` - Submit signed transaction for execution
-- `GET /ultra/v1/order/routers` - List available routing engines
+Get your API key at [portal.jup.ag](https://portal.jup.ag)
 
-Get your API key at https://portal.jup.ag
+## Documentation
 
-## Security
+- [Ultra Swap Docs](https://dev.jup.ag/docs/ultra/index)
+- [API Reference](https://dev.jup.ag/api-reference/ultra)
+- [Ultra V3 Blog](https://dev.jup.ag/blog/ultra-v3)
+
+## Security Note
 
 This runs on Solana Mainnet. Real tokens will be swapped.
-
-## Resources
-
-### Jupiter Documentation
-- [Ultra Swap Overview](https://dev.jup.ag/docs/ultra/index) - Complete Ultra Swap API documentation
-- [Get Started Guide](https://dev.jup.ag/docs/ultra/get-started) - Step-by-step integration guide
-- [API Reference](https://dev.jup.ag/api-reference/ultra) - Complete API endpoint documentation
-- [Ultra V3 Technical Deep Dive](https://dev.jup.ag/blog/ultra-v3) - Technical blog post on Ultra V3 features
-- [Jupiter Portal](https://portal.jup.ag) - Get your API key
-
-### Developer Tools
-- [Solana Web3.js](https://solana-labs.github.io/solana-web3.js/) - Solana JavaScript SDK
-- [Next.js Documentation](https://nextjs.org/docs) - React framework documentation
-- [Tailwind CSS](https://tailwindcss.com/docs) - Utility-first CSS framework
 
 ## License
 
