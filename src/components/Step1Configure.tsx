@@ -293,7 +293,7 @@ export function Step1Configure({ config, onComplete, onError, loading, setLoadin
           disabled={loading}
           className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-800 text-white font-semibold py-3 px-4 rounded-lg transition-colors"
         >
-          {loading ? 'Loading...' : 'Get Quote'}
+          {loading ? 'Loading...' : 'Continue'}
         </button>
       </form>
     </div>

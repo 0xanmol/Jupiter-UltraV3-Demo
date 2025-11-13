@@ -283,8 +283,16 @@ export function SwapWizard() {
       {/* Error Display */}
       {error && (
         <div className="bg-red-900 border border-red-700 text-red-100 px-4 py-3 rounded mb-6">
-          <p className="font-semibold">Error:</p>
-          <p>{error}</p>
+          <div className="flex items-start gap-3">
+            <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div className="flex-1">
+              <p className="font-semibold mb-1">Something went wrong, please try again</p>
+              <p className="text-sm text-red-200">{error}</p>
+              <p className="text-xs text-red-300 mt-2">💡 Tip: Open Developer Mode (toggle in bottom-right) to see detailed API logs</p>
+            </div>
+          </div>
         </div>
       )}
 

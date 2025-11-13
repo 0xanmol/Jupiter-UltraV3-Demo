@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useWallet } from '@jup-ag/wallet-adapter';
 import { SwapConfig, OrderResponse } from './SwapWizard';
 import { TokenIcon } from './TokenIcon';
@@ -170,6 +170,12 @@ export function Step2Preview({ config, onComplete, onError, onBack, loading, set
       setLoading(false);
     }
   };
+
+  // Auto-fetch quote when component mounts
+  useEffect(() => {
+    getQuote();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array = run once on mount
 
   const formatAmount = (amount: number, decimals: number) => {
     return (amount / Math.pow(10, decimals)).toFixed(6);
@@ -353,7 +359,7 @@ export function Step2Preview({ config, onComplete, onError, onBack, loading, set
       )}
 
 
-      <div className="flex space-x-4">
+      <div className="flex gap-3">
         <button
           onClick={onBack}
           disabled={loading}
@@ -362,18 +368,29 @@ export function Step2Preview({ config, onComplete, onError, onBack, loading, set
           Back
         </button>
         
+        {quote && !loading && (
+          <button
+            onClick={getQuote}
+            disabled={loading}
+            className="px-4 py-3 bg-gray-800 border border-gray-700 hover:bg-gray-750 disabled:bg-gray-900 text-white rounded-lg transition-colors"
+            title="Refresh quote"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
+        )}
+        
         <button
           onClick={() => {
             if (quote && quote.orderResponse) {
               onComplete(quote.orderResponse);
-            } else {
-              getQuote();
             }
           }}
-          disabled={loading}
+          disabled={loading || !quote}
           className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-gray-800 text-white font-semibold py-3 px-4 rounded-lg transition-colors"
         >
-          {loading ? 'Getting Quote...' : quote ? 'Proceed to Execute' : 'Get Quote'}
+          {loading ? 'Getting Quote...' : 'Proceed to Execute'}
         </button>
       </div>
 

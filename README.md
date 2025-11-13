@@ -133,6 +133,10 @@ If you see routing percentages that add up to more than 100%, that's multi-hop r
 
 **No route found** - Try a different amount or token pair.
 
+**Execution errors** - See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) for detailed debugging steps.
+
+For comprehensive debugging help, including Developer Mode usage and common error solutions, check the **[Troubleshooting Guide](./TROUBLESHOOTING.md)**.
+
 ## API Endpoints Used
 
 - `GET /ultra/v1/holdings/{address}` - Get wallet balances

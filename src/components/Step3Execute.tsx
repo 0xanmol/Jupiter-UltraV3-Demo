@@ -81,7 +81,14 @@ export function Step3Execute({ config, order, onComplete, onError, onBack, loadi
       const transactionBuffer = Buffer.from(order.transaction, 'base64');
       const transaction = VersionedTransaction.deserialize(transactionBuffer);
 
-      const signedTransaction = await signTransaction(transaction);
+      let signedTransaction;
+      try {
+        signedTransaction = await signTransaction(transaction);
+      } catch (signError) {
+        console.error('Transaction signing failed:', signError);
+        throw new Error(`Failed to sign transaction: ${signError instanceof Error ? signError.message : 'Unknown signing error'}`);
+      }
+
       const signedTransactionBase64 = Buffer.from(signedTransaction.serialize()).toString('base64');
 
       const requestBody = {
@@ -100,11 +107,29 @@ export function Step3Execute({ config, order, onComplete, onError, onBack, loadi
           },
           body: JSON.stringify(requestBody),
         });
+
+        // Parse response body
+        let data;
+        const contentType = res.headers.get('content-type');
+        const responseText = await res.text();
+        
+        if (contentType && contentType.includes('application/json')) {
+          try {
+            data = JSON.parse(responseText);
+          } catch (jsonError) {
+            console.error('Failed to parse JSON response:', jsonError);
+            console.error('Response text:', responseText);
+            throw new Error(`Invalid JSON response from API: ${responseText.substring(0, 200)}`);
+          }
+        } else {
+          throw new Error(`Expected JSON response but got: ${contentType}. Body: ${responseText.substring(0, 200)}`);
+        }
+
         return {
           ok: res.ok,
           status: res.status,
           statusText: res.statusText,
-          data: await res.json(),
+          data,
         };
       });
 
@@ -113,6 +138,14 @@ export function Step3Execute({ config, order, onComplete, onError, onBack, loadi
       setExecutionLatency(timeElapsed);
       setTransactionLandingTime(landingTime);
       const result = executeResponse.data;
+
+      // Debug logging
+      console.log('Execute API Response:', {
+        status: executeResponse.status,
+        statusText: executeResponse.statusText,
+        ok: executeResponse.ok,
+        data: result
+      });
 
       addLog?.({
         method: 'POST',
@@ -145,6 +178,18 @@ export function Step3Execute({ config, order, onComplete, onError, onBack, loadi
         }
         throw new Error(errorMessage);
       }
+
+      // Check if response has error even with 200 status
+      if (result.error && result.status !== 'Success') {
+        throw new Error(result.error || 'Transaction failed');
+      }
+
+      // Check for required signature field
+      if (!result.signature) {
+        console.error('Execute response missing signature:', result);
+        throw new Error('Transaction response missing signature. The transaction may have failed or be pending. Check the Developer Mode logs for details.');
+      }
+
       const executeResponseData: ExecuteResponse = {
         status: result.status || 'Success',
         signature: result.signature,
@@ -330,7 +375,7 @@ export function Step3Execute({ config, order, onComplete, onError, onBack, loadi
         </>
       )}
 
-      {(executionError || (executeResult && executeResult.error)) && (
+      {executionError && (
         <div className="mb-6 border border-red-500/30 rounded-lg p-4 bg-gray-900">
           <div className="flex items-start gap-3">
             <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -338,9 +383,9 @@ export function Step3Execute({ config, order, onComplete, onError, onBack, loadi
             </svg>
             <div className="flex-1">
               <div className="text-sm text-red-500 font-medium mb-1">
-                {executionError || executeResult?.error}
+                {executionError}
               </div>
-              {executionError && executionError.includes('expired') && (
+              {executionError.includes('expired') && (
                 <div className="mt-3">
                   <button
                     onClick={onBack}
@@ -350,6 +395,62 @@ export function Step3Execute({ config, order, onComplete, onError, onBack, loadi
                   </button>
                 </div>
               )}
+              {!executionError.includes('expired') && (
+                <details className="mt-3">
+                  <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-300">
+                    🔍 Troubleshooting tips
+                  </summary>
+                  <div className="mt-2 text-xs text-gray-400 space-y-2 pl-4">
+                    <div>• <strong>Check Developer Mode:</strong> Click the toggle in the bottom-right to see full API response</div>
+                    <div>• <strong>Wallet issues:</strong> Make sure your wallet is unlocked and connected</div>
+                    <div>• <strong>Insufficient SOL:</strong> You need a small amount of SOL for transaction fees</div>
+                    <div>• <strong>Order expired:</strong> Go back and create a new order if it&apos;s been more than 30 seconds</div>
+                    <div>• <strong>Network congestion:</strong> Solana network might be busy, try again in a moment</div>
+                    <div>• <strong>Browser console:</strong> Press F12 and check the Console tab for detailed error logs</div>
+                  </div>
+                </details>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {executeResult && executeResult.status === 'Success' && executeResult.error && (
+        <div className="mb-6 border border-yellow-500/30 rounded-lg p-4 bg-gray-900">
+          <div className="flex items-start gap-3">
+            <svg className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div className="flex-1">
+              <div className="text-sm text-yellow-400 font-medium mb-1">
+                Transaction Note
+              </div>
+              <div className="text-sm text-gray-300 mb-2">
+                {(() => {
+                  const errorMsg = executeResult.error;
+                  if (errorMsg.includes('2502') || errorMsg.includes('0x9c6')) {
+                    return (
+                      <div>
+                        <div className="mb-2">{errorMsg}</div>
+                        <div className="text-xs text-gray-400 mt-2">
+                          <strong>Error 2502 (0x9c6):</strong> RequireKeysEqViolated - A constraint check in one of the DEX programs in the route failed. This is typically non-fatal and the swap still completed successfully.
+                        </div>
+                      </div>
+                    );
+                  }
+                  if (errorMsg.includes('custom program error')) {
+                    return (
+                      <div>
+                        <div className="mb-2">{errorMsg}</div>
+                        <div className="text-xs text-gray-400 mt-2">
+                          This error code comes from a DEX program in the routing path. Only Jupiter V6 errors are automatically parsed; other DEX program errors show as custom program errors. The swap completed successfully despite this error.
+                        </div>
+                      </div>
+                    );
+                  }
+                  return errorMsg;
+                })()}
+              </div>
             </div>
           </div>
         </div>
@@ -364,6 +465,16 @@ export function Step3Execute({ config, order, onComplete, onError, onBack, loadi
           >
             Back
           </button>
+          
+          {executionError && !executionError.includes('expired') && (
+            <button
+              onClick={executeSwap}
+              disabled={loading}
+              className="flex-1 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-800 text-white font-semibold py-3 px-4 rounded-lg transition-colors"
+            >
+              {loading ? 'Retrying...' : 'Retry'}
+            </button>
+          )}
           
           {!executionError && (
             <button
